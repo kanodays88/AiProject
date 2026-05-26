@@ -10,7 +10,9 @@ import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(exclude = {
         OpenAiAudioSpeechAutoConfiguration.class,      // 语音合成
@@ -19,6 +21,8 @@ import org.springframework.context.annotation.Bean;
         OpenAiModerationAutoConfiguration.class        // 内容审核
 })
 @MapperScan("com.kanodays88.skytakeoutai.mapper")
+@EnableCaching
+@EnableScheduling
 public class SkyTakeOutAiApplication {
 
     public static void main(String[] args) {

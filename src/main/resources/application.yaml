@@ -6,6 +6,11 @@ server:
       force: true # 强制强制强制，重要的事情说三遍
       force-request: true
       force-response: true
+        # 核心：启用转发头自动识别
+      forward-headers-strategy: native
+      tomcat:
+        remoteip:
+          internal-proxies: .*    # 信任所有代理（仅调试用）
 spring:
   application:
     name: sky-take-out-AI

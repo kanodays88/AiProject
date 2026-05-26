@@ -4,12 +4,14 @@ import cn.hutool.json.JSONUtil;
 import com.kanodays88.skytakeoutai.constant.FileConstant;
 import com.kanodays88.skytakeoutai.content.BaseContent;
 import com.kanodays88.skytakeoutai.memory.FileBasedChatMemory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 @Component
+@EnableAsync
+@Slf4j
 public class FileRemoveTask {
 
     @Autowired
@@ -27,7 +31,8 @@ public class FileRemoveTask {
     @Autowired
     private VectorStore vectorStore;
 
-    @Scheduled(cron = "0 0 */1 * * ?")
+//    @Scheduled(cron = "* * * * * ?")
+    @Scheduled(cron = "0 0 */2 * * ?")
     @Async
     public void fileRemove(){
 
@@ -37,9 +42,10 @@ public class FileRemoveTask {
         for(String key:chatMemoryKeys){
             //获取单一会话的过期时间
             String jsonTime = stringRedisTemplate.opsForValue().get(key);
-            LocalDateTime TimeoutTime = JSONUtil.toBean(jsonTime, LocalDateTime.class);
+            LocalDateTime timeoutTime = JSONUtil.toBean(jsonTime, LocalDateTime.class);
 
-            if(LocalDateTime.now().compareTo(TimeoutTime) >= 0){
+            if(LocalDateTime.now().compareTo(timeoutTime) >= 0){
+                log.info("会话缓存：{}已过期",key);
                 //样式    chatMemory:用户:chatId
                 String[] strArr = key.split(":");
                 String userName = strArr[1];

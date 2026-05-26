@@ -244,7 +244,7 @@ public class ChatController {
                 fileBasedChatMemory.add(chatId,List.of(new UserMessage(userMessage),new AssistantMessage(simpleChat)));
                 //刷新或建立该会话记忆的寿命
                 String chatMemoryCache = "chatMemory:"+BaseContent.getUser().getUserName()+":"+chatId;
-                stringRedisTemplate.opsForValue().set(chatMemoryCache,JSONUtil.toJsonStr(LocalDateTime.now().plusHours(24*3)));
+                stringRedisTemplate.opsForValue().set(chatMemoryCache,JSONUtil.toJsonStr(LocalDateTime.now().plusHours(24)));
                 //同时维护一个redis的Set集合，存储所有后续需要清除的chatMemory
                 stringRedisTemplate.opsForSet().add("remove:chatMemory",chatMemoryCache);
 
