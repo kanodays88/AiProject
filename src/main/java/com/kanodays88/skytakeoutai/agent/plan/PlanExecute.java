@@ -80,8 +80,6 @@ public class PlanExecute {
     @Autowired
     private ToolCallback[] allTools;
 
-    private final Object sseLock = new Object();
-
     public PlanExecute(OpenAiChatModel openAiChatModel) throws IOException {
         this.openAiChatModel = openAiChatModel;
         this.chatClient = ChatClient.builder(openAiChatModel)
@@ -91,78 +89,7 @@ public class PlanExecute {
     }
     //计划执行，整个智能体执行的入口
     public String planExecute(String originalTask, String conversationId, SseEmitter emitter) throws IOException {
-        long overallStart = System.currentTimeMillis();
-//        //获取当前主线程的上下文
-//        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
-//        //异步执行智能体
-//        CompletableFuture.runAsync(()->{
-//            try{
-//                //将主线程上下文设置到子线程中
-//                if (attributes != null) {
-//                    RequestContextHolder.setRequestAttributes(attributes);
-//                }
-//
-////                //获取当前会话最近10条消息记录
-////                List<Message> messages = fileBasedChatMemory.get(conversationId);
-////                fileBasedChatMemory.add(conversationId,List.of(new UserMessage(userPrompt)));//将用户输入存记忆
-////                //意图分析
-////                if(!sseSend.sendEventThink(emitter,"开始进行意图分析...\n")) return;
-////                TaskSchema taskSchema = parseIntent(userPrompt,messages);
-////                String taskSchemaMessage = "意图解析完成\n";
-////                if(!taskSchema.mainGoal().equals("") && !taskSchema.mainGoal().isEmpty()) taskSchemaMessage += "核心目标: "+taskSchema.mainGoal()+"\n";
-////                if(!taskSchema.deliverables().equals("") && !taskSchema.deliverables().isEmpty()) taskSchemaMessage += "交付要求: "+taskSchema.deliverables()+"\n";
-////                if(!taskSchema.constraints().equals("") && !taskSchema.constraints().isEmpty()) taskSchemaMessage += "约束条件: "+taskSchema.constraints()+"\n";
-////                if(!sseSend.sendEventThink(emitter,taskSchemaMessage)) return;
-//
-//                //对意图进行任务拆分
-//                if(!sseSend.sendEventThink(emitter,"开始对任务进行拆分...\n")) return;
-//                DecomposedTasks decomposedTasks = decomposeTaskWithContract(originalTask);
-//                List<SubTask> subTasks = decomposedTasks.subTaskList();
-//                String taskMessage = subTasks.stream().map(s -> {
-//                    return "任务" + s.taskId() + "：" + s.taskName();
-//                }).collect(Collectors.joining("\n---\n"));
-//                if(!sseSend.sendEventThink(emitter,"任务拆分完成：\n"+taskMessage)) return;
-//                //对每个子任务执行，得到结果集
-//                List<DistilledResult> results = new ArrayList<>();
-//                for(SubTask task:subTasks){
-//                    //获得该任务需要使用的工具集
-//                    ToolCallback[] tools = getTools(task.toolName());
-//                    //初始化执行该任务的智能体
-//                    Kanodays88Manus kanodays88Manus = new Kanodays88Manus(tools, openAiChatModel);
-//                    if(!sseSend.sendEventThink(emitter,"开始执行任务【"+task.taskName()+"】\n")) return;
-//                    //获取该任务对应所需的上游任务的结果
-//                    String upStreamTaskResult = checkAndFillUpstreamContext(task, results);
-//                    //将上游的结果作为记忆输入给智能体
-//                    kanodays88Manus.setMessageList(List.of(upStreamTaskResult).stream().map(s->new SystemMessage(s)).collect(Collectors.toList()));
-//
-//                    //执行任务，得到本次任务的原始结果
-//                    List<String> childResult = kanodays88Manus.run(task.taskContent(),task.taskName(),emitter,sseSend);
-//                    //原始结果拼接
-//                    String result = childResult.stream().collect(Collectors.joining("/n---/n"));
-//                    //蒸馏任务结果
-//                    DistilledResult distilledResult = distillSubTaskResult(task, result, decomposedTasks.globalRequiredFields());
-//
-//                    results.add(distilledResult);
-//                }
-//
-//                //整合结果集和意图，得到最终结果
-//                String s = fuseResults(originalTask, results);
-//                fileBasedChatMemory.add(conversationId,List.of(new AssistantMessage(s)));//将模型返回的最终结果存入记忆
-//                if(!sseSend.sendEventResult(emitter,s)) return;
-//                //关闭链接
-//                emitter.complete();
-//            }catch (Exception e){
-//                log.error("PlanExecute 执行失败：{}", e.getMessage());
-//                sseSend.sendEventResult(emitter, "执行失败: " + e.getMessage());
-//                emitter.completeWithError(e);
-//            }finally {
-//                //删除ThreadLocal防止内存泄露
-//                BaseContent.removeChatId();
-//                //释放ThreadLocal
-//                RequestContextHolder.resetRequestAttributes();
-//                emitter.complete();
-//            }
-//        });
+        long overallStart = System.currentTimeMillis();//获取系统时间
         //由于任务并行执行时会额外开启一次异步线程，所以需要传递一下线程上下文（本质将Web线程上下文传递到任务执行线程）
         //获取当前线程的上下文
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
@@ -170,11 +97,9 @@ public class PlanExecute {
         String chatId = BaseContent.getChatId();
         //获取当前线程的登录用户
         UserLoginDTO userLoginDTO = BaseContent.getUser();
-        //获取当前用户的会话记忆
-        FileBasedChatMemory fileBasedChatMemory = new FileBasedChatMemory(FileConstant.FILE_SAVE_DIR + "\\" + BaseContent.getUser().getUserName() + "\\chatMemory");
 
         //对意图进行任务拆分
-        if(!safeSendEventThink(emitter,"开始对任务进行拆分...\n")) return null;
+        if(!SSESend.sendEventThink(emitter,"开始对任务进行拆分...\n")) return null;
         long t0 = System.currentTimeMillis();
         DecomposedTasks decomposedTasks = decomposeTaskWithContract(originalTask);
         log.info("[Phase] decomposeTask took {} ms", System.currentTimeMillis() - t0);
@@ -182,19 +107,24 @@ public class PlanExecute {
         String taskMessage = subTasks.stream().map(s -> {
             return "任务" + s.taskId() + "：" + s.taskName();
         }).collect(Collectors.joining("\n---\n"));
-        if(!safeSendEventThink(emitter,"任务拆分完成：\n"+taskMessage)) return null;
+        if(!SSESend.sendEventThink(emitter,"任务拆分完成：\n"+taskMessage)) return null;
         //对每个子任务执行，得到结果集（并行wave执行）
+        //ConcurrentHashMap线程安全hashMap，内部使用乐观锁或悲观锁的形式实现线程安全
+        //原理简单来说就是put操作时，对对应的hash桶上锁，写入操作完成后才释放锁供其他线程操作
         ConcurrentHashMap<Integer, DistilledResult> resultMap = new ConcurrentHashMap<>();
         List<Set<Integer>> waves = buildExecutionWaves(subTasks);
         Map<Integer, SubTask> taskMap = subTasks.stream()
                 .collect(Collectors.toMap(SubTask::taskId, Function.identity()));
 
         for (Set<Integer> waveTaskIds : waves) {
+            //创建一个线程数量为waveTaskIds.size()的线程池
             ExecutorService executor = Executors.newFixedThreadPool(waveTaskIds.size());
             try {
+                //创建一个装载异步任务类CompletableFuture集合
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 for (int taskId : waveTaskIds) {
                     SubTask task = taskMap.get(taskId);
+                    //从线程池executor中创建异步任务，并加入到集合
                     futures.add(CompletableFuture.runAsync(() -> {
                         //将主线程上下文设置到当前线程上下文
                         if(attributes != null){
@@ -210,7 +140,8 @@ public class PlanExecute {
                         try {
                             ToolCallback[] tools = getTools(task.toolNames());
                             Kanodays88Manus kanodays88Manus = new Kanodays88Manus(tools, openAiChatModel);
-                            safeSendEventThink(emitter, "开始执行任务【" + task.taskName() + "】\n");
+//                            safeSendEventThink(emitter, "开始执行任务【" + task.taskName() + "】\n");
+                            SSESend.sendEventThink(emitter,"开始执行任务【" + task.taskName() + "】\n");
                             //获取该任务对应所需的上游任务的结果
                             String upStreamTaskResult = checkAndFillUpstreamContext(task, resultMap);
                             //将上游的结果作为记忆输入给智能体
@@ -245,8 +176,11 @@ public class PlanExecute {
                         }
                     }, executor));
                 }
+                //开启一个新异步任务ComletableFutrue,将之前的任务集合futrues传进来，在任务集合中的所有异步任务完成时，该任务才算完成，未完成时程序处于阻塞状态
+                //在这里的作用是阻塞等待全部异步任务完成
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             } finally {
+                //关闭线程池
                 executor.shutdown();
             }
         }
@@ -264,13 +198,6 @@ public class PlanExecute {
     }
 
 
-
-
-    private boolean safeSendEventThink(SseEmitter emitter, String data) {
-        synchronized (sseLock) {
-            return SSESend.sendEventThink(emitter, data);
-        }
-    }
 
     //从所需工具名称集合中获取到具体工具集合
     public ToolCallback[] getTools(Set<String> toolNames){

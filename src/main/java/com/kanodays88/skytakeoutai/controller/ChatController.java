@@ -48,6 +48,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
@@ -86,6 +88,26 @@ public class ChatController {
     private static final String CHAT_RAG_STATIC = "chat:ragStatic:";
     @Autowired
     private KotlinCoroutinesReturnTypeParser kotlinCoroutinesReturnTypeParser;
+
+    @RequestMapping("/test")
+    public SseEmitter testSseEmitter(){
+        SseEmitter emitter = new SseEmitter(10 * 60 * 1000L);
+
+        CompletableFuture.runAsync(()->{
+            UserLoginDTO userLoginDTO = new UserLoginDTO();
+            userLoginDTO.setUserName("鹿乃");
+            BaseContent.setUser(userLoginDTO);
+            BaseContent.setChatId("3194");
+           try{
+               SSESend.sendEventResult(emitter,planExecute.planExecute("日本有什么好玩的","3194",emitter));
+           }catch (Exception e){
+               e.printStackTrace();
+           }finally {
+               emitter.complete();
+           }
+        });
+        return emitter;
+    }
 
     @RequestMapping(value = "/{msg}",produces = "text/event-stream;charset=UTF-8")
     public SseEmitter serviceChat(@PathVariable("msg") String msg, @RequestHeader("chatId") String chatId){

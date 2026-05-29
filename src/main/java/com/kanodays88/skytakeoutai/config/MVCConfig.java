@@ -31,6 +31,7 @@ public class MVCConfig implements WebMvcConfigurer {
         InterceptorRegistration r1 = registry.addInterceptor(loginInterceptor)
                 .addPathPatterns("/ai/chat/**")
                 .excludePathPatterns(
+                        "/ai/chat/test",
                         "/ai/user/login",
                         "/upload/**")
                 .order(1);

@@ -19,5 +19,4 @@ public class RedisUtils {
         String redisKeyPath = "tmp:"+ BaseContent.getUser().getUserName()+":"+BaseContent.getChatId()+":file";
         stringRedisTemplate.opsForValue().set(redisKeyPath,JSONUtil.toJsonStr(LocalDateTime.now().plusHours(24)));
     }
-
 }

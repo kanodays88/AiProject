@@ -12,12 +12,14 @@ public class SSESend {
     // ====================== 辅助方法：发送SSE事件 ======================
     public static boolean sendEventThink(SseEmitter emitter, String data) {
         try {
-            // 核心修改：同上，强制 UTF-8
-            emitter.send(
-                    SseEmitter.event()
-                            .data("Agent思考:" + data, new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
-            );
-            return true;
+            synchronized (emitter){
+                // 核心修改：同上，强制 UTF-8
+                emitter.send(
+                        SseEmitter.event()
+                                .data("Agent思考:" + data, new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                );
+                return true;
+            }
         } catch (IOException e) {
             // 发送失败时关闭连接
             emitter.completeWithError(e);
@@ -27,12 +29,14 @@ public class SSESend {
 
     public static boolean sendEventResult(SseEmitter emitter,String data){
         try {
-            // 核心修改：同上，强制 UTF-8
-            emitter.send(
-                    SseEmitter.event()
-                            .data("Agent结果:" + data, new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
-            );
-            return true;
+            synchronized (emitter){
+                // 核心修改：同上，强制 UTF-8
+                emitter.send(
+                        SseEmitter.event()
+                                .data("Agent结果:" + data, new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                );
+                return true;
+            }
         } catch (IOException e) {
             // 发送失败时关闭连接
             emitter.completeWithError(e);
